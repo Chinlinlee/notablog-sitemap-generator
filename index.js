@@ -1,5 +1,8 @@
+const fs = require("fs");
 const path = require("path");
 
+const dayjs = require("dayjs");
+const cheerio = require("cheerio");
 const { program } = require("commander");
 const glob = require("glob");
 const { SitemapXmlWriter } = require("./sitemap-writer");
@@ -20,15 +23,36 @@ if (!path.isAbsolute(inputFolder)) {
     inputFolder = path.resolve(path.join(process.cwd(), inputFolder));
 }
 
+function getPages(files) {
+    let pages = [];
+    for (let file of files) {
+        let page = {
+            url: file.replace(/\\/, "/"),
+            lastmod: getLastModInPage(file)
+        }
+        pages.push(page);
+    }
+    return pages;
+}
+
+function getLastModInPage(file) {
+    let absFile = path.join(inputFolder, file);
+    if (path.basename(absFile) === "index.html") {
+        return dayjs().format();
+    }
+    let pageContent = fs.readFileSync(absFile, "utf-8");
+    const $ = cheerio.load(pageContent);
+    let date = $(".DateTagBar__Date").text().split("Posted on ").at(1);
+    if (!date) return dayjs().format();
+    let lastMod = dayjs(date, "ddd, MMM DD, YYYY").format("YYYY-MM-DD");
+    return lastMod;
+}
+
 (async () => {
     let files = await glob.glob(`**/*.html`, {
         cwd: inputFolder
     });
-    let urls = [];
-    for (let i = 0 ; i < files.length ; i++) {
-        let url = files[i].replace(/\\/, "/");
-        urls.push(url);
-    }
-    let sitemapWriter = new SitemapXmlWriter(baseUrl, urls, output);
+    let pages = getPages(files);
+    let sitemapWriter = new SitemapXmlWriter(baseUrl, pages, output);
     await sitemapWriter.writeSiteMapXml();
 })();

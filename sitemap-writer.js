@@ -8,11 +8,11 @@ const urlJoin = require("./urlJoin");
 const { formatXml } = require("./formatXml");
 
 class SitemapXmlWriter {
-    constructor(baseUrl, urls, dest) {
+    constructor(baseUrl, pages, dest) {
         /** @type { string } */
         this.baseUrl = baseUrl;
-        /** @type { string[] } */
-        this.urls = urls;
+        /** @type { import("./types").Page[] } */
+        this.pages = pages;
         /** @type { string } */
         this.dest = dest;
 
@@ -30,10 +30,10 @@ class SitemapXmlWriter {
         xmlWriter.writeAttribute("xsi:schemaLocation", "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd");
 
         // append blog root first
-        await this.addUrl(xmlWriter, this.baseUrl, "1.0");
+        await this.addUrl(xmlWriter, { url: this.baseUrl, lastmod: dayjs().format() }, "1.0");
 
-        for (let i = 0; i < this.urls.length; i++) {
-            await this.addUrl(xmlWriter, this.urls[i]);
+        for (let i = 0; i < this.pages.length; i++) {
+            await this.addUrl(xmlWriter, this.pages[i]);
         }
         xmlWriter.endDocument();
         let xmlResult = formatXml(xmlWriter.toString());
@@ -43,16 +43,16 @@ class SitemapXmlWriter {
 
     /**
      * @param {any} xmlWriter
-     * @param {string} location 
+     * @param {import("./types").Page} page
      */
-    async addUrl(xmlWriter, location, priority="0.8") {
+    async addUrl(xmlWriter, page, priority="0.8") {
         xmlWriter.startElement("url");
-        if (location === this.baseUrl) {
-            xmlWriter.writeElement("loc", location);
+        if (page.url === this.baseUrl) {
+            xmlWriter.writeElement("loc", this.baseUrl);
         } else {
-            xmlWriter.writeElement("loc", urlJoin(this.baseUrl, location));
+            xmlWriter.writeElement("loc", urlJoin(this.baseUrl, page.url));
         }
-        xmlWriter.writeElement("lastmod", dayjs().format());
+        xmlWriter.writeElement("lastmod", page.lastmod);
         xmlWriter.writeElement("priority", priority);
         xmlWriter.endElement();
     }
